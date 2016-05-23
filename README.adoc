@@ -1,0 +1,29 @@
+=== Poblano - Maven Configuration Documentation Generation
+
+This little https://docs.oracle.com/javase/7/docs/api/javax/annotation/processing/Processor.html[Annotation Processor] helps in generation documentation for the configuration of a Maven Plugin.
+
+CAUTION: This is work-in-progress and doesn't do anything useful yet. Stay tuned ....
+
+The annotation processor detects configuration annotated with https://maven.apache.org/plugin-tools/maven-plugin-annotations/apidocs/org/apache/maven/plugins/annotations/Parameter.html[@Parameter] and extracts the JavaDoc attached to this configuration variable:
+
+.Example Documentation
+[source, java]
+----
+@Mojo(name = "MyMojo")
+public class MyMojo extends AbstractMojo {
+   // .....
+
+   /**
+    * If set to true print <em>verbose</em> progress messages
+    */
+   @Parameter(defaultValue = false)
+   private boolean verbose;
+
+  // ......
+}
+----
+
+As output formats will be created:
+
+* *XML Schema* which can be included used in a decent IDE for autocompletion.
+* *AsciiDoc Snippets* which can be used in reference Manuals for direct inclusion.
