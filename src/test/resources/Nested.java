@@ -47,6 +47,12 @@ public class Nested {
     @Parameter
     int max;
 
+    /**
+     * Min hits
+     */
+    @Parameter
+    Integer min;
+
     public static class InnerNested {
 
         /**

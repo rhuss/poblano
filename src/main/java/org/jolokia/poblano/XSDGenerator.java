@@ -19,12 +19,13 @@ package org.jolokia.poblano;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
+import javax.jnlp.PersistenceService;
 import javax.xml.transform.OutputKeys;
 
 import com.jamesmurty.utils.XMLBuilder2;
+import org.apache.maven.plugins.annotations.Parameter;
 import org.jolokia.poblano.model.ConfigElement;
 import org.jolokia.poblano.model.Configuration;
 
@@ -36,6 +37,9 @@ public class XSDGenerator {
 
     public final static String XSD_NS = "http://www.w3.org/2001/XMLSchema";
 
+    // Mapping from Java class to simple types
+    private static final Map<String,String> SIMPLE_TYPE_LOOKUP;
+
     public void generate(File targetFile, String targetNamespaceUri, Configuration config) throws IOException {
         XMLBuilder2 builder = createXsdBuilder(targetNamespaceUri);
         generateElements(builder, config, config.getRootElements());
@@ -45,19 +49,47 @@ public class XSDGenerator {
     private void generateElements(XMLBuilder2 builder, Configuration config, List<ConfigElement> elements) {
         for (ConfigElement element : elements) {
             XMLBuilder2 elBuilder = builder.element("xs:element", XSD_NS)
-                                           .a("name",element.getName())
-                                           .a("type", element.getType());
-            generateElements(elBuilder, config, element.getChildren());
+                                           .a("name",element.getName());
+            if (isComplexType(element)) {
+                XMLBuilder2 typeBuilder = elBuilder.element("xs:complexType").element("xs:all").a("minOccurs","0");
+                addDocumentation(typeBuilder,element);
+                generateElements(typeBuilder, config, element.getChildren());
+            } else {
+                String simpleType = convertSimpleType(element.getType());
+                elBuilder.a("type",simpleType);
+                addDocumentation(elBuilder, element);
+            }
         }
+    }
+
+    private void addDocumentation(XMLBuilder2 builder, ConfigElement element) {
+        String doc = element.getDocumentation();
+        if (doc != null && doc.trim().length() != 0) {
+            builder.element("xs:annotation").element("xs:documentation").cdata(doc.trim());
+        }
+    }
+
+    private String convertSimpleType(String type) {
+        String ret = SIMPLE_TYPE_LOOKUP.get(type);
+        return ret != null ? ret : "xs:string";
+    }
+
+    private boolean isComplexType(ConfigElement element) {
+        return element.hasChildren();
     }
 
     private XMLBuilder2 createXsdBuilder(String targetNamespaceUri) {
         XMLBuilder2 builder =
             XMLBuilder2
                 .create("xs:schema", XSD_NS)
-            .a("targetNamespace",targetNamespaceUri)
-            .a("xmlns",targetNamespaceUri)
-            .a("elementFormDefault","qualified");
+                .a("targetNamespace",targetNamespaceUri)
+                .a("xmlns",targetNamespaceUri)
+                .a("elementFormDefault","qualified")
+                  .element("xs:element")
+                  .a("name","configuration")
+                    .element("xs:complexType")
+                      .element("xs:all")
+                      .a("minOccurs","0");
         return builder;
     }
 
@@ -70,5 +102,28 @@ public class XSDGenerator {
         try (FileWriter writer = new FileWriter(targetFile)) {
             builder.toWriter(writer, outputProps);
         }
+    }
+
+    static {
+        String[] types = {
+            String.class.getName(), "xs:string",
+            Integer.class.getName(), "xs:integer",
+            "int", "xs:integer",
+            Long.class.getName(), "xs:long",
+            "long", "xs:long",
+            Float.class.getName(), "xs:float",
+            "float", "xs:float",
+            Double.class.getName(), "xs:double",
+            "double", "xs:double",
+            Boolean.class.getName(), "xs:boolean",
+            "boolean", "xs:boolean",
+            Date.class.getName(), "xs:date"
+        };
+
+        Map<String, String> map = new HashMap<>();
+        for (int i = 0; i < types.length; i+=2) {
+            map.put(types[i], types[i + 1]);
+        }
+        SIMPLE_TYPE_LOOKUP = Collections.unmodifiableMap(map);
     }
 }
