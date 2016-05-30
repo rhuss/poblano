@@ -42,7 +42,7 @@ public class Configuration {
      * @param defaultVal default value if not set
      * @param documentation documentation to add
      */
-    public void update(ConfigElement parent, String mojo, String name,
+    public ConfigElement update(ConfigElement parent, String mojo, String name,
                        String type, String defaultVal, String documentation) {
 
         ConfigElement element = get(name, type);
@@ -50,6 +50,7 @@ public class Configuration {
             element = create(parent, mojo, name, type, defaultVal, documentation);
         }
         element.addMojo(mojo);
+        return element;
     }
 
     private ConfigElement create(ConfigElement parent, String mojo, String name,
@@ -64,6 +65,8 @@ public class Configuration {
         elements.put(createId(name,type), element);
         if (parent == null) {
             rootElements.add(element);
+        } else {
+            parent.addChild(element);
         }
         return element;
     }

@@ -21,6 +21,12 @@ public class TestMojo extends AbstractMojo {
     @Parameter
     private String type;
 
+    /**
+     * A nested beand
+     */
+    @Parameter
+    private Nested nested;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {}
 }
