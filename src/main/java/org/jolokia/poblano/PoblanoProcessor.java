@@ -13,10 +13,10 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
 import com.google.auto.service.AutoService;
-import com.sun.tools.javac.code.Symbol;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.jolokia.poblano.model.ConfigElement;
@@ -41,32 +41,44 @@ public class PoblanoProcessor extends AbstractProcessor {
         Boolean.class.getName()));
 
     private Messager messager;
-    private boolean processed = false;
+    private Configuration config;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         messager = processingEnv.getMessager();
-        processed = false;
+        config = new Configuration();
     }
 
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        if (!processed) {
-            Configuration config = new Configuration();
-            for (Element el : roundEnv.getElementsAnnotatedWith(Mojo.class)) {
-                Mojo mojo = el.getAnnotation(Mojo.class);
-                info("%s: Processing ...", mojo.name());
+        for (Element el : roundEnv.getElementsAnnotatedWith(Mojo.class)) {
+            Mojo mojo = el.getAnnotation(Mojo.class);
+            info("%s: Processing ...", mojo.name());
+            while (el != null) {
                 extractConfig(config, mojo.name(), new Stack<ConfigElement>(), el);
+                el = getSuperClassElement((TypeElement) el);
             }
+        }
+
+        if (roundEnv.processingOver()) {
             try {
                 XSDGenerator xsdGenerator = new XSDGenerator();
-                xsdGenerator.generate(new File("/tmp/test.xsd"), "http://fabric8.io/fabric8-maven-plugin", config);
+                xsdGenerator.generate(new File("/tmp/test.xsd"), "http://fabric8.io/docker-maven-plugin", config);
             } catch (IOException e) {
                 error("Error while writing XSD: %s", e.getMessage());
             }
-            processed = true;
         }
         return false;
+    }
+
+    private Element getSuperClassElement(TypeElement el) {
+        TypeMirror supertype =  el.getSuperclass();
+        if (supertype.getKind() != TypeKind.NONE) {
+            DeclaredType declared = (DeclaredType) supertype;
+            return declared.asElement();
+        } else {
+            return null;
+        }
     }
 
     private void extractConfig(Configuration config, String mojo, Stack<ConfigElement> parents, Element element) {

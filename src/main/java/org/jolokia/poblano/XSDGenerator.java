@@ -16,18 +16,17 @@ package org.jolokia.poblano;
  * limitations under the License.
  */
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
-import javax.jnlp.PersistenceService;
 import javax.xml.transform.OutputKeys;
 
 import com.jamesmurty.utils.XMLBuilder2;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.codehaus.plexus.util.StringInputStream;
 import org.jolokia.poblano.model.ConfigElement;
 import org.jolokia.poblano.model.Configuration;
+import org.w3c.tidy.Tidy;
 
 /**
  * @author roland
@@ -35,10 +34,23 @@ import org.jolokia.poblano.model.Configuration;
  */
 public class XSDGenerator {
 
-    public final static String XSD_NS = "http://www.w3.org/2001/XMLSchema";
+    public static final String XSD_NS = "http://www.w3.org/2001/XMLSchema";
+    private static final String XSD_HTML = "http://www.w3.org/1999/xhtml";
 
     // Mapping from Java class to simple types
     private static final Map<String,String> SIMPLE_TYPE_LOOKUP;
+
+    private final Tidy tidy;
+
+    public XSDGenerator() {
+        this.tidy = new Tidy();
+        tidy.setXHTML(true);
+        tidy.setQuiet(true);
+        tidy.setShowWarnings(false);
+        tidy.setPrintBodyOnly(true);
+        tidy.setEncloseText(true);
+        tidy.setTrimEmptyElements(true);
+    }
 
     public void generate(File targetFile, String targetNamespaceUri, Configuration config) throws IOException {
         XMLBuilder2 builder = createXsdBuilder(targetNamespaceUri);
@@ -65,8 +77,20 @@ public class XSDGenerator {
     private void addDocumentation(XMLBuilder2 builder, ConfigElement element) {
         String doc = element.getDocumentation();
         if (doc != null && doc.trim().length() != 0) {
-            builder.element("xs:annotation").element("xs:documentation").cdata(doc.trim());
+            XMLBuilder2 docBuilder = XMLBuilder2.parse("<div xmlns=\"" + XSD_HTML + "\">" + tidy(doc.trim()).trim() + "</div>");
+            builder.element("xs:annotation").element("xs:documentation").importXMLBuilder(docBuilder);
         }
+    }
+
+    private String addNamespace(String namespace, String text) {
+        return text.replaceAll("(</?)([^>/]+)(/?>)","$1" + namespace + ":$2$3");
+    }
+
+    private String tidy(String doc) {
+        StringReader reader =  new StringReader(doc);
+        StringWriter writer = new StringWriter();
+        tidy.parse(reader, writer);
+        return writer.toString();
     }
 
     private String convertSimpleType(String type) {
@@ -84,12 +108,8 @@ public class XSDGenerator {
                 .create("xs:schema", XSD_NS)
                 .a("targetNamespace",targetNamespaceUri)
                 .a("xmlns",targetNamespaceUri)
-                .a("elementFormDefault","qualified")
-                  .element("xs:element")
-                  .a("name","configuration")
-                    .element("xs:complexType")
-                      .element("xs:all")
-                      .a("minOccurs","0");
+                .a("xmlns:html",XSD_HTML)
+                .a("elementFormDefault","qualified");
         return builder;
     }
 

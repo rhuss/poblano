@@ -9,7 +9,7 @@ import org.apache.maven.plugins.annotations.Parameter;
  * @since 23/05/16
  */
 @Mojo(name = "test")
-public class TestMojo extends AbstractMojo {
+public class TestMojo extends MyBaseMojo {
 
     /**
      * The name of the test
@@ -22,11 +22,17 @@ public class TestMojo extends AbstractMojo {
     private String type;
 
     /**
-     * A nested beand
+     * A nested bean
+     *
+     * <ul>
+     *     <li>Wrong item
+     * </ul>
      */
     @Parameter
     private Nested nested;
 
     @Override
-    public void execute() throws MojoExecutionException, MojoFailureException {}
+    public void execute() throws MojoExecutionException, MojoFailureException {
+        super.execute();
+    }
 }
