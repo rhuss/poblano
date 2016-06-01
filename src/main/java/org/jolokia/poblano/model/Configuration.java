@@ -45,7 +45,7 @@ public class Configuration {
     public ConfigElement update(ConfigElement parent, String mojo, String name,
                        String type, String defaultVal, String documentation) {
 
-        ConfigElement element = get(name, type);
+        ConfigElement element = get(parent, name, type);
         if (element == null) {
             element = create(parent, mojo, name, type, defaultVal, documentation);
         }
@@ -57,12 +57,12 @@ public class Configuration {
                                  String type, String defaultVal, String documentation) {
         ConfigElement element;
         element = new ConfigElement(parent,
-                                mojo,
-                                name,
-                                type,
-                                defaultVal,
-                                documentation);
-        elements.put(createId(name,type), element);
+                                    mojo,
+                                    name,
+                                    type,
+                                    defaultVal,
+                                    documentation);
+        elements.put(element.getId(), element);
         if (parent == null) {
             rootElements.add(element);
         } else {
@@ -71,13 +71,10 @@ public class Configuration {
         return element;
     }
 
-    public ConfigElement get(String name, String type) {
-        return elements.get(createId(name, type));
+    public ConfigElement get(ConfigElement parent, String name, String type) {
+        return elements.get(ConfigElement.createId(parent, name, type));
     }
 
-    private String createId(String name, String type) {
-        return name + "|" + type;
-    }
 
     public List<ConfigElement> getRootElements() {
         return rootElements;

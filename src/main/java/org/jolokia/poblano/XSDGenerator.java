@@ -43,13 +43,7 @@ public class XSDGenerator {
     private final Tidy tidy;
 
     public XSDGenerator() {
-        this.tidy = new Tidy();
-        tidy.setXHTML(true);
-        tidy.setQuiet(true);
-        tidy.setShowWarnings(false);
-        tidy.setPrintBodyOnly(true);
-        tidy.setEncloseText(true);
-        tidy.setTrimEmptyElements(true);
+        tidy = createTidy();
     }
 
     public void generate(File targetFile, String targetNamespaceUri, Configuration config) throws IOException {
@@ -60,16 +54,22 @@ public class XSDGenerator {
 
     private void generateElements(XMLBuilder2 builder, Configuration config, List<ConfigElement> elements) {
         for (ConfigElement element : elements) {
-            XMLBuilder2 elBuilder = builder.element("xs:element", XSD_NS)
-                                           .a("name",element.getName());
-            if (isComplexType(element)) {
-                XMLBuilder2 typeBuilder = elBuilder.element("xs:complexType").element("xs:all").a("minOccurs","0");
-                addDocumentation(typeBuilder,element);
+            XMLBuilder2 elBuilder = builder.element("xs:element", XSD_NS).a("name",element.getName());
+            addDocumentation(elBuilder, element);
+            if (element.isMap()) {
+                elBuilder
+                    .element("xs:complexType")
+                      .element("xs:sequence")
+                        .element("xs:any").a("minOccurs","0").a("maxOccurs","unbounded");
+            } else if (element.isComplexType()) {
+                XMLBuilder2 typeBuilder =
+                        elBuilder
+                            .element("xs:complexType")
+                              .element(element.isListLike() ? "xs:sequence" : "xs:all").a("minOccurs", "0");
                 generateElements(typeBuilder, config, element.getChildren());
             } else {
                 String simpleType = convertSimpleType(element.getType());
-                elBuilder.a("type",simpleType);
-                addDocumentation(elBuilder, element);
+                elBuilder.a("type", simpleType);
             }
         }
     }
@@ -98,10 +98,6 @@ public class XSDGenerator {
         return ret != null ? ret : "xs:string";
     }
 
-    private boolean isComplexType(ConfigElement element) {
-        return element.hasChildren();
-    }
-
     private XMLBuilder2 createXsdBuilder(String targetNamespaceUri) {
         XMLBuilder2 builder =
             XMLBuilder2
@@ -112,6 +108,7 @@ public class XSDGenerator {
                 .a("elementFormDefault","qualified");
         return builder;
     }
+
 
     private void writeXsd(XMLBuilder2 builder, File targetFile) throws IOException {
         Properties outputProps = new Properties();
@@ -145,5 +142,16 @@ public class XSDGenerator {
             map.put(types[i], types[i + 1]);
         }
         SIMPLE_TYPE_LOOKUP = Collections.unmodifiableMap(map);
+    }
+
+    private Tidy createTidy() {
+        Tidy tidy = new Tidy();
+        tidy.setXHTML(true);
+        tidy.setQuiet(true);
+        tidy.setShowWarnings(false);
+        tidy.setPrintBodyOnly(true);
+        tidy.setEncloseText(true);
+        tidy.setTrimEmptyElements(true);
+        return tidy;
     }
 }

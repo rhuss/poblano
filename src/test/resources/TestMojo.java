@@ -1,3 +1,6 @@
+import java.util.List;
+import java.util.Map;
+
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -30,6 +33,25 @@ public class TestMojo extends MyBaseMojo {
      */
     @Parameter
     private Nested nested;
+
+    /**
+     * List of nested beans
+     *
+     */
+    @Parameter
+    private List<Nested> nestedList;
+
+    /**
+     * Array of strings
+     */
+    @Parameter
+    private String[] stringArray;
+
+    /**
+     * A map
+     */
+    @Parameter
+    private Map<String, String> map;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {

@@ -24,6 +24,10 @@ import java.util.*;
  */
 public class ConfigElement {
 
+    public static final String MAP_TYPE = "map";
+    public static final String COLLECTION_TYPE = "list";
+    public static final String ARRAY_TYPE = "array";
+
     // Unique id of this config element
     private String id;
 
@@ -59,9 +63,23 @@ public class ConfigElement {
         this.type = type;
         this.documentation = documentation;
         this.defaultVal = defaultVal;
+        this.id = createId(parent, name, type);
         children = new ArrayList<>();
         mojos = new HashSet<>();
         mojos.add(mojo);
+    }
+
+    /**
+     * Create unique id for this config element
+     *
+     * @param parent parent element when it is about complex elements
+     * @param name name of the element
+     * @param type its type
+     * @return a strin representation of the type
+     */
+    public static String createId(ConfigElement parent, String name, String type) {
+        String parentId = parent != null ? parent.getId() + "|" : "";
+        return parentId + "|" + name + "|" + type;
     }
 
     public void addChild(ConfigElement child) {
@@ -98,5 +116,30 @@ public class ConfigElement {
 
     public ConfigElement getParent() {
         return parent;
+    }
+
+    public boolean isMap() {
+        return MAP_TYPE.equals(type);
+    }
+
+    public boolean isList() {
+        return COLLECTION_TYPE.equals(type);
+    }
+
+    public boolean isArray() {
+        return ARRAY_TYPE.equals(type);
+    }
+
+
+    public boolean isComplexType() {
+        return hasChildren();
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public boolean isListLike() {
+        return isList() || isArray();
     }
 }
