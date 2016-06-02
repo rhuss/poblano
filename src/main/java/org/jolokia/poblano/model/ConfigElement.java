@@ -51,6 +51,7 @@ public class ConfigElement {
 
     // Child elements
     private List<ConfigElement> children;
+    private List<EnumValueElement> enumValues;
 
     ConfigElement(ConfigElement parent,
                           String mojo,
@@ -94,6 +95,10 @@ public class ConfigElement {
         mojos.add(mojo);
     }
 
+    void setEnumValues(List<EnumValueElement> enumValues) {
+        this.enumValues = enumValues;
+    }
+
     public String getName() {
         return name;
     }
@@ -114,6 +119,10 @@ public class ConfigElement {
         return children;
     }
 
+    public List<EnumValueElement> getEnumValues() {
+        return enumValues;
+    }
+
     public ConfigElement getParent() {
         return parent;
     }
@@ -121,6 +130,7 @@ public class ConfigElement {
     public boolean isMap() {
         return MAP_TYPE.equals(type);
     }
+
 
     public boolean isList() {
         return COLLECTION_TYPE.equals(type);
@@ -130,9 +140,12 @@ public class ConfigElement {
         return ARRAY_TYPE.equals(type);
     }
 
-
     public boolean isComplexType() {
         return hasChildren();
+    }
+
+    public boolean isEnum() {
+        return enumValues != null && enumValues.size() > 0;
     }
 
     public String getId() {

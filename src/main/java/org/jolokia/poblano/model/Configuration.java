@@ -42,8 +42,8 @@ public class Configuration {
      * @param defaultVal default value if not set
      * @param documentation documentation to add
      */
-    public ConfigElement update(ConfigElement parent, String mojo, String name,
-                       String type, String defaultVal, String documentation) {
+    public ConfigElement updateElement(ConfigElement parent, String mojo, String name,
+                                       String type, String defaultVal, String documentation) {
 
         ConfigElement element = get(parent, name, type);
         if (element == null) {
@@ -51,6 +51,12 @@ public class Configuration {
         }
         element.addMojo(mojo);
         return element;
+    }
+
+    public void updateEnum(ConfigElement parent, List<EnumValueElement> enumValueElements,
+                           String mojo, String name, String type, String defaultVal, String documentation) {
+        ConfigElement element = updateElement(parent, mojo, name, type, defaultVal, documentation);
+        element.setEnumValues(enumValueElements);
     }
 
     private ConfigElement create(ConfigElement parent, String mojo, String name,
@@ -71,10 +77,10 @@ public class Configuration {
         return element;
     }
 
+
     public ConfigElement get(ConfigElement parent, String name, String type) {
         return elements.get(ConfigElement.createId(parent, name, type));
     }
-
 
     public List<ConfigElement> getRootElements() {
         return rootElements;

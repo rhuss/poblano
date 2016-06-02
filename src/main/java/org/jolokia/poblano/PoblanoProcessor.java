@@ -6,9 +6,7 @@ import java.util.*;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
@@ -20,6 +18,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.jolokia.poblano.model.ConfigElement;
 import org.jolokia.poblano.model.Configuration;
+import org.jolokia.poblano.model.EnumValueElement;
 
 
 @SupportedAnnotationTypes({
@@ -58,6 +57,8 @@ public class PoblanoProcessor extends AbstractProcessor {
             Mojo mojo = el.getAnnotation(Mojo.class);
             info("%s: Processing ...", mojo.name());
             while (el != null) {
+                // TODO: Remember the inheritance hierarchie so that asciidoc generation
+                // can create separate documents for base and super class
                 extractConfig(config, mojo.name(), new Stack<ConfigElement>(), el);
                 el = getSuperClassElement((TypeElement) el);
             }
@@ -75,7 +76,7 @@ public class PoblanoProcessor extends AbstractProcessor {
     }
 
     // Recursively extract configuration from basic and complext typs
-    private void extractConfig(Configuration config, String mojo, Stack<ConfigElement> parents, Element element) {
+    private void extractConfig(Configuration config, String mojoGoal, Stack<ConfigElement> parents, Element element) {
         List<VariableElement> fields = ElementFilter.fieldsIn(element.getEnclosedElements());
         for (VariableElement field : fields) {
             Parameter paramAnno = field.getAnnotation(Parameter.class);
@@ -85,23 +86,49 @@ public class PoblanoProcessor extends AbstractProcessor {
                 String documentation = extractDocumentation(field);
                 ConfigElement parent = parents.empty() ? null : parents.peek();
 
+                if (isEnum(field)) {
+                    List<EnumValueElement> enumValueElements = extracEnumValuesFromFieldElement(field);
+                    config.updateEnum(parent, enumValueElements, mojoGoal, name, type, paramAnno.defaultValue(), documentation);
+                    continue;
+                }
+
                 // Check for a complex type to decent into
-                ConfigElement current = config.update(parent, mojo, name, type, paramAnno.defaultValue(), documentation);
+                ConfigElement current = config.updateElement(parent, mojoGoal, name, type, paramAnno.defaultValue(), documentation);
 
                 // If a list kind of element insert an extra config element for the list type
                 if (isArray(field) || isCollection(field)) {
-                    current = insertListItemElement(config, field, current, name, mojo);
+                    current = insertListItemElement(config, field, current, name, mojoGoal);
                 }
 
                 // Recursively examine included type
                 Element complexElement = extractComplexElement(field);
                 if (complexElement != null) {
                     parents.push(current);
-                    extractConfig(config, mojo, parents, complexElement);
+                    extractConfig(config, mojoGoal, parents, complexElement);
                     parents.pop();
                 }
             }
         }
+    }
+
+    private List<EnumValueElement> extracEnumValuesFromFieldElement(VariableElement element) {
+        if (isEnum(element)) {
+            Elements elementUtils = processingEnv.getElementUtils();
+            List<EnumValueElement> ret = new ArrayList<>();
+            // Cast is save because of the isEnum() above
+            DeclaredType type = (DeclaredType) element.asType();
+            Element enumElement = type.asElement();
+            for (Element valueElement : enumElement.getEnclosedElements()) {
+                if (valueElement.getKind() == ElementKind.ENUM_CONSTANT) {
+                    ret.add(new EnumValueElement(valueElement.getSimpleName().toString(),
+                                                 elementUtils.getDocComment(valueElement)));
+                }
+            }
+            return ret;
+        } else {
+            return null;
+        }
+
     }
 
     private ConfigElement insertListItemElement(Configuration config, VariableElement field, ConfigElement current, String name, String mojo) {
@@ -111,7 +138,7 @@ public class PoblanoProcessor extends AbstractProcessor {
         }
         String itemType = listItemType.toString();
         String itemName = itemTypeToName(name, listItemType);
-        current = config.update(current, mojo, itemName, itemType, null, null);
+        current = config.updateElement(current, mojo, itemName, itemType, null, null);
         return current;
     }
 
@@ -191,6 +218,14 @@ public class PoblanoProcessor extends AbstractProcessor {
 
     private boolean isComplexType(TypeMirror type) {
         return type.getKind() == TypeKind.DECLARED && !PLAIN_TYPES.contains(type.toString());
+    }
+
+    private boolean isEnum(VariableElement element) {
+        TypeMirror type = element.asType();
+        if (type.getKind() == TypeKind.DECLARED) {
+            return ((DeclaredType) type).asElement().getKind() == ElementKind.ENUM;
+        }
+        return false;
     }
 
     private boolean isArray(VariableElement field) {

@@ -22,10 +22,9 @@ import java.util.*;
 import javax.xml.transform.OutputKeys;
 
 import com.jamesmurty.utils.XMLBuilder2;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.codehaus.plexus.util.StringInputStream;
 import org.jolokia.poblano.model.ConfigElement;
 import org.jolokia.poblano.model.Configuration;
+import org.jolokia.poblano.model.EnumValueElement;
 import org.w3c.tidy.Tidy;
 
 /**
@@ -54,28 +53,55 @@ public class XSDGenerator {
 
     private void generateElements(XMLBuilder2 builder, Configuration config, List<ConfigElement> elements) {
         for (ConfigElement element : elements) {
-            XMLBuilder2 elBuilder = builder.element("xs:element", XSD_NS).a("name",element.getName());
-            addDocumentation(elBuilder, element);
+            XMLBuilder2 elBuilder = builder.element("xs:element", XSD_NS).a("name", element.getName());
+            addDocumentation(elBuilder, element.getDocumentation());
             if (element.isMap()) {
-                elBuilder
-                    .element("xs:complexType")
-                      .element("xs:sequence")
-                        .element("xs:any").a("minOccurs","0").a("maxOccurs","unbounded");
+                addMap(elBuilder);
+            } else if (element.isEnum()) {
+                addEnum(elBuilder, element);
             } else if (element.isComplexType()) {
-                XMLBuilder2 typeBuilder =
-                        elBuilder
-                            .element("xs:complexType")
-                              .element(element.isListLike() ? "xs:sequence" : "xs:all").a("minOccurs", "0");
-                generateElements(typeBuilder, config, element.getChildren());
+                // Call recursively back to this methd ...
+                addComplexType(elBuilder, config, element);
             } else {
-                String simpleType = convertSimpleType(element.getType());
-                elBuilder.a("type", simpleType);
+                addSimpleType(elBuilder, element);
             }
         }
     }
 
-    private void addDocumentation(XMLBuilder2 builder, ConfigElement element) {
-        String doc = element.getDocumentation();
+    private void addSimpleType(XMLBuilder2 elBuilder, ConfigElement element) {
+        String simpleType = convertSimpleType(element.getType());
+        elBuilder.a("type", simpleType);
+    }
+
+    private void addComplexType(XMLBuilder2 elBuilder, Configuration config, ConfigElement element) {
+        XMLBuilder2 typeBuilder =
+            elBuilder
+                .element("xs:complexType")
+                  .element(element.isListLike() ? "xs:sequence" : "xs:all").a("minOccurs", "0");
+        generateElements(typeBuilder, config, element.getChildren());
+    }
+
+    private void addEnum(XMLBuilder2 elBuilder, ConfigElement element) {
+        XMLBuilder2 innerBuilder = elBuilder
+            .element("xs:simpleType")
+            .element("xs:restriction");
+        for (EnumValueElement enumValElement : element.getEnumValues()) {
+            XMLBuilder2 valueBuilder = innerBuilder.element("xs:enumeration").a("value",enumValElement.getValue());
+            String doc = enumValElement.getDocumentation();
+            if (doc != null) {
+                addDocumentation(valueBuilder,doc);
+            }
+        }
+    }
+
+    private void addMap(XMLBuilder2 elBuilder) {
+        elBuilder
+            .element("xs:complexType")
+              .element("xs:sequence")
+                 .element("xs:any").a("minOccurs", "0").a("maxOccurs", "unbounded");
+    }
+
+    private void addDocumentation(XMLBuilder2 builder, String doc) {
         if (doc != null && doc.trim().length() != 0) {
             XMLBuilder2 docBuilder = XMLBuilder2.parse("<div xmlns=\"" + XSD_HTML + "\">" + tidy(doc.trim()).trim() + "</div>");
             builder.element("xs:annotation").element("xs:documentation").importXMLBuilder(docBuilder);
