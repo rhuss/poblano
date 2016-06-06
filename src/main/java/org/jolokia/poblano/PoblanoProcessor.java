@@ -16,6 +16,8 @@ import javax.tools.Diagnostic;
 import com.google.auto.service.AutoService;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.jolokia.poblano.annotation.PoblanoElement;
+import org.jolokia.poblano.annotation.PoblanoIgnore;
 import org.jolokia.poblano.model.ConfigElement;
 import org.jolokia.poblano.model.Configuration;
 import org.jolokia.poblano.model.EnumValueElement;
@@ -80,7 +82,8 @@ public class PoblanoProcessor extends AbstractProcessor {
         List<VariableElement> fields = ElementFilter.fieldsIn(element.getEnclosedElements());
         for (VariableElement field : fields) {
             Parameter paramAnno = field.getAnnotation(Parameter.class);
-            if (paramAnno != null) {
+            PoblanoIgnore ignore = field.getAnnotation(PoblanoIgnore.class);
+            if (ignore == null && paramAnno != null) {
                 String type = extractType(field);
                 String name = extractName(field);
                 String documentation = extractDocumentation(field);
@@ -137,9 +140,18 @@ public class PoblanoProcessor extends AbstractProcessor {
             listItemType = (DeclaredType) processingEnv.getElementUtils().getTypeElement("java.lang.String").asType();
         }
         String itemType = listItemType.toString();
-        String itemName = itemTypeToName(name, listItemType);
+        String itemName = extractItemName(field, name, listItemType);
         current = config.updateElement(current, mojo, itemName, itemType, null, null);
         return current;
+    }
+
+    private String extractItemName(VariableElement field, String name, DeclaredType listItemType) {
+        PoblanoElement poblanoElement = field.getAnnotation(PoblanoElement.class);
+        if (poblanoElement != null) {
+            return poblanoElement.value();
+        } else {
+            return itemTypeToName(name, listItemType);
+        }
     }
 
     private String itemTypeToName(String listName, DeclaredType listItemType) {

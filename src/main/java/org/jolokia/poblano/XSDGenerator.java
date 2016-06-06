@@ -76,15 +76,21 @@ public class XSDGenerator {
     private void addComplexType(XMLBuilder2 elBuilder, Configuration config, ConfigElement element) {
         XMLBuilder2 typeBuilder =
             elBuilder
-                .element("xs:complexType")
-                  .element(element.isListLike() ? "xs:sequence" : "xs:all").a("minOccurs", "0");
+                .element("xs:complexType");
+        if (element.isListLike()) {
+            typeBuilder = typeBuilder.element("xs:sequence").a("minOccurs", "0");
+        } else {
+            typeBuilder = typeBuilder.element("xs:choice").a("maxOccurs", "unbounded");
+        }
+
         generateElements(typeBuilder, config, element.getChildren());
     }
 
     private void addEnum(XMLBuilder2 elBuilder, ConfigElement element) {
         XMLBuilder2 innerBuilder = elBuilder
             .element("xs:simpleType")
-            .element("xs:restriction");
+            .element("xs:restriction")
+              .a("base","xs:string");
         for (EnumValueElement enumValElement : element.getEnumValues()) {
             XMLBuilder2 valueBuilder = innerBuilder.element("xs:enumeration").a("value",enumValElement.getValue());
             String doc = enumValElement.getDocumentation();

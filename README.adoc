@@ -1,10 +1,10 @@
 === Poblano - Maven Configuration Documentation Generation
 
-image::https://badge.waffle.io/rhuss/poblano.png?label=ready&title=Ready["Stories in Ready",link="http://waffle.io/rhuss/poblano"]
+// image::https://badge.waffle.io/rhuss/poblano.png?label=ready&title=Ready["Stories in Ready",link="http://waffle.io/rhuss/poblano"]
 
 This little https://docs.oracle.com/javase/7/docs/api/javax/annotation/processing/Processor.html[Annotation Processor] helps in generation documentation for the configuration of a Maven Plugin.
 
-CAUTION: This is work-in-progress and doesn't do anything useful yet. Stay tuned ....
+CAUTION: This is work-in-progress and doesn't do much yet. Stay tuned ....
 
 The annotation processor detects configuration annotated with https://maven.apache.org/plugin-tools/maven-plugin-annotations/apidocs/org/apache/maven/plugins/annotations/Parameter.html[@Parameter] and extracts the JavaDoc attached to this configuration variable:
 
